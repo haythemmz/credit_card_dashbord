@@ -53,6 +53,20 @@ fig_stacked_bar = px.bar(filtered_transactions, x='category', y='amount', color=
 
 st.plotly_chart(fig_stacked_bar)
 
+#fig_histogram = px.histogram(filtered_transactions, x='transaction_month',y='amount', nbins=12, title='Monthly Spending Distribution', labels={'Amount': 'Spending Amount'})
+#st.plotly_chart(fig_histogram)
+
+monthly_spending =filtered_transactions.groupby('transaction_month')['amount'].sum().reset_index()
+
+# Create a histogram to show the amount by month
+fig_histogram = px.bar(monthly_spending, x='transaction_month', y='amount', title='Monthly Spending Distribution',
+                       labels={'transaction_month': 'month', 'amount': 'Spending Amount'})
+
+# Add text on top of the histogram bars
+fig_histogram.update_traces(text=round(monthly_spending['amount']), textposition='outside')
+st.plotly_chart(fig_histogram)
+
+
 
 fig_pie = px.pie(
     filtered_transactions,
