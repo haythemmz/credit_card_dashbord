@@ -38,17 +38,18 @@ month_names = {
 transactions = pd.read_excel('card_transactions.xlsx')
 
 st.header('Filter Transactions')
-selected_categories = st.multiselect('Select Categories', transactions['category'].unique(), default=transactions['category'].unique())
-transactions=transactions[transactions['category'].isin(selected_categories)]
 
-start_month = st.selectbox('Select Start Month',list(month_names.values()), index=0)
-start_day = st.slider('Select Start Day',  min_value=1, max_value=31, value=1)
-end_month = st.selectbox('Select End Month',list(month_names.values()), index=len(month_names) - 1)
-end_day = st.slider('Select End Day', min_value=1, max_value=31, value=31)
+#selected_categories = st.multiselect('Select Categories', transactions['category'].unique(), default=transactions['category'].unique())
+#transactions=transactions[transactions['category'].isin(selected_categories)]
 
-start_date = datetime.strptime(f'{start_month} {start_day}', '%B %d')
-end_date = datetime.strptime(f'{end_month} {end_day}', '%B %d')
-
+#start_month = st.selectbox('Select Start Month',list(month_names.values()), index=0)
+#start_day = st.slider('Select Start Day',  min_value=1, max_value=31, value=1)
+#end_month = st.selectbox('Select End Month',list(month_names.values()), index=len(month_names) - 1)
+#end_day = st.slider('Select End Day', min_value=1, max_value=31, value=31)
+#start_date = datetime.strptime(f'{start_month} {start_day}', '%B %d')
+#end_date = datetime.strptime(f'{end_month} {end_day}', '%B %d')
+start_date = st.date_input('Select Start Date', datetime.today())
+end_date = st.date_input('Select End Date', datetime.today())
 
 filtered_transactions = transactions[((transactions['transaction_month'] > start_date.month) | ((transactions['transaction_month'] == start_date.month) & (transactions['transaction_day'] >= start_date.day))) &
                                         ((transactions['transaction_month'] < end_date.month) | ((transactions['transaction_month'] == end_date.month) & (transactions['transaction_day'] <= end_date.day)))]
