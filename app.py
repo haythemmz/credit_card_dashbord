@@ -5,6 +5,42 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px 
 from datetime import datetime
+import os
+import json
+import shutil
+import subprocess
+from load import load_data_from_db_and_drop_duplicates
+transactions_df=pd.read_excel('card_transactions.xlsx')
+def creat_name(x,l):
+    for i in l : 
+        if i.upper() in str(x).upper():
+            return i.upper()
+    return None
+
+def creat_cat(x,l):
+    for i in l : 
+        if i.upper() in str(x).upper():
+            return True
+    return False
+def get_category(text,original_dict):
+
+    # Destination dictionary
+    new_dict = {}
+
+    # Key to move
+    key_to_move = 'PLACE'
+
+# Check if the key exists in the original dictionary
+    if key_to_move in original_dict:
+    # Extract the key-value pair and move it to the new dictionary
+        new_dict[key_to_move] = original_dict.pop(key_to_move)
+    cat='OTHER'
+    name='OTHER'
+    for k in original_dict.keys():
+        if creat_cat(text,original_dict[k])==True:
+            cat=k
+            name=creat_name(text,original_dict[k])
+    return cat,name
 
 # Add a title
 st.title('My Streamlit Dashboard')
@@ -12,32 +48,81 @@ st.set_option('deprecation.showPyplotGlobalUse', False)
 
 # Add text
 st.write('Welcome to my dashboard!')
+with open('categories.json', 'r') as file:
+    json_data = file.read()
 
+categories=json.loads(json_data)
 
 
 current_path = os.getcwd()
 UPLOAD_FOLDER = os.path.join(current_path, 'data')
+
+
+# Define the target directory where the PDF files will be moved to
+TARGET_DIRECTORY = UPLOAD_FOLDER
+
 col1, col2 = st.columns(2)
 # Create the folder if it doesn't exist
-credit_card_ending = col2.number_input('Enter the last  four-digit of the credit card', min_value=1000, max_value=9999)
+credit_card_ending = col2.number_input('Enter the last four digits of the credit card', min_value=1000, max_value=9999)
 
 # Add a file uploader button to the app
 uploaded_file = col1.file_uploader("Upload a PDF file", type=["pdf"])
 
 # Check if a file was uploaded
 if uploaded_file is not None:
-    # Save the uploaded file to the specified folder
-    with open(os.path.join(UPLOAD_FOLDER, uploaded_file.name), "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    col1.write(f"File '{uploaded_file.name}' uploaded successfully!")
-# Add a plot
+    # Check if the file with the same name already exists in the target directory
+    target_file_path = os.path.join(TARGET_DIRECTORY, uploaded_file.name)
+    if os.path.exists(target_file_path):
+        col1.write(f"File '{uploaded_file.name}' already exists in '{TARGET_DIRECTORY}'.")
+    else:
+        # Save the uploaded file to the specified folder
+        with open(os.path.join(UPLOAD_FOLDER, uploaded_file.name), "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        col1.write(f"File '{uploaded_file.name}' uploaded successfully!")
 
+        # Move the file to the target directory
+        if os.path.exists(TARGET_DIRECTORY):
+            shutil.move(os.path.join(UPLOAD_FOLDER, uploaded_file.name), target_file_path)
+            col1.write(f"File '{uploaded_file.name}' moved to '{TARGET_DIRECTORY}' successfully!")
+        else:
+            col1.write(f"Target directory '{TARGET_DIRECTORY}' does not exist!")
+
+
+col1,col2,col3=st.columns(3)
+
+if col1.button("Run ETL"):
+    # Run the etl.py script using the subprocess module
+    subprocess.run(['python', 'etl.py', str(credit_card_ending)])
+    st.write("ETL process completed.")
+if col2.button("update database"):
+    subprocess.run(["python", "database.py"])
+    st.write("update process completed.")
+if col3.button("Load Data"):
+    st.write("Loading data and dropping duplicates...")
+
+    # Replace these variables with your MySQL server credentials
+    host = '127.0.0.1'
+    user = 'root'
+    password = '1234'
+    port = 3306
+    database_name = 'credit_card'
+
+    transactions_df = load_data_from_db_and_drop_duplicates(host, user, password, port, database_name)
+    transactions_df[['category', 'organization']] = transactions_df['description'].apply(lambda x: pd.Series(get_category(x,categories)))
+    transactions_df=transactions_df.drop_duplicates()
+
+    if transactions_df is not None:
+        st.write("Data loaded successfully:")
+        st.dataframe(transactions_df)
+        st.write(transactions_df.shape)
+    else:
+        st.write("Error occurred while loading data. Please check the connection.")
 month_names = {
     1: 'January', 2: 'February', 3: 'March', 4: 'April', 5: 'May', 6: 'June', 7: 'July', 8: 'August', 9: 'September', 10: 'October', 11: 'November', 12: 'December'
 }
 
 transactions = pd.read_excel('card_transactions.xlsx')
-
+transactions=transactions_df
 st.header('Filter Transactions')
 
 #selected_categories = st.multiselect('Select Categories', transactions['category'].unique(), default=transactions['category'].unique())
